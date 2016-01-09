@@ -11,47 +11,40 @@ COMMAND_REGEXP = new RegExp "^/([a-zA-Z0-9_]+)\s*", "i"
 
 class Message
 
-  api = null
+  constructor: (@attributes, @api, @chat)->
 
-  id = null
-  author = {}
-  date = null
+    @id = @attributes.message_id
+    @author = @attributes.from
 
-  attributes = null
+    @date = new Date @attributes.date
 
-  event = null
+    @event = @detectEvent()
 
-  chat = null
+    @_question = null
 
-  isCommand = null
+    @_isCommand = null
 
-  question = null
-
-  constructor: (_attributes, _api, _event, _chat)->
-
-    api = _api
-
-    attributes = _attributes
-
-    id = _attributes.message_id
-    author = _attributes.from
-
-    date = new Date _attributes.date
-
-    event = _event
-
-    chat = _chat
 
   initialize: (callback)->
     callback()
 
-  getId: ->
+  detectEvent: ->
 
-    id
+    event = null
+
+    for messageType in @api.getMessageTypes()
+      if @attributes[messageType]
+        event = messageType
+
+    event
+
+  getId: =>
+
+    @id
 
   isOwnMessage: =>
 
-    @getBotId() is author.id
+    @getBotId() is @author.id
 
   getBotId: =>
 
@@ -59,35 +52,39 @@ class Message
 
     botCredentials.id
 
-  getBotCredentials: ->
+  getBotCredentials: =>
 
-    api.getCredentials()
+    @api.getCredentials()
 
   getEvent: =>
 
     if @isCommand()
       COMMAND_EVENT
-    else event
+    else @event
 
   isReply: ->
 
-    _.has attributes, REPLY_FIELD
+    _.has @attributes, REPLY_FIELD
 
   getQuestion: =>
 
     if @isReply()
 
-      question ?= new Message attributes[REPLY_FIELD], api, "question"
+      @_question ?= new Message @attributes[REPLY_FIELD], @api, @chat
 
-      question
+      @_question
 
     else false
 
   isCommand: =>
 
-    isCommand ?= event is TEXT_EVENT and @hasCommandMark()
+    @_isCommand ?= @isText() and @hasCommandMark()
 
-    isCommand
+    @_isCommand
+
+  isText: =>
+
+    @event is TEXT_EVENT
 
   hasCommandMark: =>
 
@@ -95,7 +92,7 @@ class Message
 
   getText: ->
 
-    attributes.text or attributes.caption
+    @attributes.text or @attributes.caption
 
   getCommandName: =>
 
@@ -127,7 +124,7 @@ class Message
 
       if @getEvent() is DOCUMENT_EVENT
 
-        attributes.document.mime_type.split("/").shift() is "image"
+        @attributes.document.mime_type.split("/").shift() is "image"
 
       else true
 
@@ -137,16 +134,16 @@ class Message
 
     fileId = @getFileId()
 
-    api.getFileBuffer fileId, callback
+    @api.getFileBuffer fileId, callback
 
   downloadFileTo: (path, callback)=>
 
     fileId = @getFileId()
 
-    api.downloadFile fileId, path, callback
+    @api.downloadFile fileId, path, callback
 
 
-  getFileId: ->
+  getFileId: =>
 
     if @getEvent() is DOCUMENT_EVENT
 
@@ -157,17 +154,17 @@ class Message
       @getOriginalPhotoId()
 
 
-  getDocumentId: ->
+  getDocumentId: =>
 
-    attributes.document.file_id
+    @attributes.document.file_id
 
   getOriginalPhotoId: =>
 
     @getOriginalPhotoAttributes().file_id
 
-  getOriginalPhotoAttributes: ->
+  getOriginalPhotoAttributes: =>
 
-    _.last attributes.photo
+    _.last @attributes.photo
 
 
 

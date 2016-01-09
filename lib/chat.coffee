@@ -83,27 +83,16 @@ class MessageOptions
 
 class Chat
 
-  chatId = null
-  first_name = ""
-  last_name = ""
-  username = ""
-  type = ""
+  constructor: (params, @api)->
 
-  api = null
+    @chatId = params.id
+    @first_name = params.first_name
+    @last_name = params.last_name
+    @username = params.username
+    @type = params.type
 
-  replyMarkup = null
-
-  messageOptions = null
-
-  constructor: (params, _api)->
-
-    @_api = api = _api
-
-    chatId = params.id
-    first_name = params.first_name
-    last_name = params.last_name
-    username = params.username
-    type = params.type
+    @messageOptions = null
+    @replyMarkup = null
 
   initialize: (callback)->
     callback()
@@ -112,7 +101,7 @@ class Chat
 
     options = @prepareOptions options
 
-    api.sendMessage chatId, text, options, (err, attributes)->
+    @api.sendMessage chatId, text, options, (err, attributes)->
 
       return callback err if err
 
@@ -120,37 +109,37 @@ class Chat
 
   prepareOptions: (options = {})=>
 
-    if messageOptions
-      options = messageOptions.toOptions()
+    if @messageOptions
+      options = @messageOptions.toOptions()
 
-    if replyMarkup
-      options.reply_markup = replyMarkup.toOptions()
+    if @replyMarkup
+      options.reply_markup = @replyMarkup.toOptions()
 
     options
 
 
-  sendAction: (action, callback)->
+  sendAction: (action, callback)=>
 
     if action not in CHAT_ACTIONS
       return callback "Not not available chatAction `#{action}`"
 
-    api.sendChatAction chatId, action, callback
+    @api.sendChatAction @chatId, action, callback
 
-  getId: ->
+  getId: =>
 
-    chatId
+    @chatId
 
   sendMarkdown: =>
     @setupOptions()
 
-    messageOptions.markdown()
+    @messageOptions.markdown()
 
     @
 
   disablePagePreview: =>
     @setupOptions()
 
-    messageOptions.markdown()
+    @messageOptions.markdown()
 
     @
 
@@ -158,7 +147,7 @@ class Chat
 
     messageId = false
 
-    if message instanceof api.getMessageClass()
+    if message instanceof @api.getMessageClass()
       messageId = message.getId()
     else
       unless _.isNaN(+message)
@@ -166,36 +155,36 @@ class Chat
 
     if messageId
       @setupOptions()
-      messageOptions.reply messageId
+      @messageOptions.reply messageId
 
     @
 
 
   setupOptions: ->
 
-    messageOptions ?= new MessageOptions
+    @messageOptions ?= new MessageOptions
 
   createHideKeyboard: (selective)->
 
-    replyMarkup = new HideKeyboard selective
+    @replyMarkup = new HideKeyboard selective
 
-    replyMarkup
+    @replyMarkup
 
   createForceReply: (selective)->
 
-    replyMarkup = new ForceReply selective
+    @replyMarkup = new ForceReply selective
 
-    replyMarkup
+    @replyMarkup
 
   createKeyboard: (oneTime, selective, resize)->
 
-    replyMarkup = new Keyboard oneTime, selective, resize
+    @replyMarkup = new Keyboard oneTime, selective, resize
 
-    replyMarkup
+    @replyMarkup
 
   removeReplyMarkup: ->
 
-    replyMarkup = null
+    @replyMarkup = null
 
 
 

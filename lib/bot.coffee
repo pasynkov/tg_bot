@@ -8,117 +8,111 @@ Message = require "./message"
 
 COMMAND_EVENT = "command"
 
-class TelegramBot
+EventEmitter = require "events"
 
-  api = null
-  connected = false
-  me = false
+class TelegramBot extends EventEmitter
 
-  CustomChat = null
-  CustomMessage = null
+  constructor: (token, @CustomChatClass, @CustomMessageClass)->
 
-  constructor: (token, CustomChatClass, CustomMessageClass)->
+    super
 
-    api = new NodeTelegramBotApi token, {polling: true}
+    @api = new NodeTelegramBotApi token
 
-    CustomChat = CustomChatClass
-    CustomMessage = CustomMessageClass
+    @api.processUpdate = @processUpdate
+
+    @regExpCallbacks = []
+
+    @connected = false
+
+    @me = false
 
   Chat: @Chat = Chat
+
   Message: @Message = Message
 
   connect: (callback)=>
 
-    api.getMe().then(
+    @api.initPolling()
+
+    @api.getMe().then(
       ({id, first_name, username})=>
 
-        connected = true
+        @connected = true
 
-        me = {id, first_name, username}
+        @me = {id, first_name, username}
 
         callback()
       callback
     )
 
-  isConnected: ->
-    connected is true
+  isConnected: =>
+    @connected is true
 
-  getCredentials: ->
-    me
+  getCredentials: =>
+    @me
 
-  #todo доработать основательно. добавить плюхи типа command:start и тд
-  subscribe: (eventsToSubscribe, listener, callback = false)=>
+  processUpdate: (update = {})=>
 
-    if _.isFunction(eventsToSubscribe)
-      listener = eventsToSubscribe
-      eventsToSubscribe = "*"
-
-    regExps = []
-
-    subscribeToCommands = false
-
-    if _.isArray eventsToSubscribe
-      events = _.filter(
-        eventsToSubscribe
-        (e)->
-          if e is COMMAND_EVENT
-            subscribeToCommands = true
-          if e instanceof RegExp
-            regExps.push e
-            return false
-          else
-            return e in api.messageTypes
-      )
-    else if eventsToSubscribe in api.messageTypes
-        events = [eventsToSubscribe]
-      else if eventsToSubscribe is "*"
-        events = api.messageTypes
-      else
-        events = []
-
-    unless events.length
-      error = "Events `#{JSON.stringify eventsToSubscribe}` not found"
-      if _.isFunction(callback)
-        return callback error
-      else
-        throw new Error error
-
-    for event in events
-      api.on event, @getMessageCallback(event, listener)
-
-    for regExp in regExps
-      api.onText regExp, @getMessageCallback(event, listener)
-
-    if _.isFunction(callback)
-      callback()
-    else return @
-
-
-  getMessageCallback: (event, listener)=>
-    (params)=>
+    if (attributes = update.message)
 
       MessageClass = @getMessageClass()
       ChatClass = @getChatClass()
 
-      chat = new ChatClass params.chat, @, event
-      message = new MessageClass params, @, event, chat
+      chat = new ChatClass attributes.chat, @
+      message = new MessageClass attributes, @, chat
 
       async.parallel(
         [
           chat.initialize
           message.initialize
         ]
-        ->
-          listener message, chat, event
+        =>
+          event = message.getEvent()
+
+          @emit "*", message, chat
+          @emit event, message, chat
+
+          if message.isCommand()
+            @emit "command:#{message.getCommandName()}", message, chat, message.getCommandArguments()
+
+          if message.isText()
+            for item in @regExpCallbacks
+              if item.regExp.exec message.getText()
+                if item.eventName
+                  @emit item.eventName, message, chat
+                else
+                  item.callback message, chat
+
       )
 
-  getMessageClass: ->
+  getMessageTypes: =>
 
-    CustomMessage or Message
+    @api.messageTypes
 
-  getChatClass: ->
+  onText: (regExp, callback)=>
+    unless regExp instanceof RegExp
+      regExp = new RegExp regExp
 
-    CustomChat or Chat
+    if _.isFunction(callback)
+      eventName = false
+    else
+      eventName = callback
+      callback = false
+
+    @regExpCallbacks.push {
+      regExp
+      eventName
+      callback
+    }
+
+
+  getMessageClass: =>
+
+    @CustomMessageClass or Message
+
+  getChatClass: =>
+
+    @CustomChatClass or Chat
 
   getFileBuffer: (fileId, callback)->
 
@@ -150,7 +144,7 @@ class TelegramBot
 
   invokeApiMethod: ([methodName, params ...] ..., callback)=>
 
-    api[methodName].apply(api, params)
+    @api[methodName].apply(@api, params)
     .then(
       ->
         args = _.flatten [null, _.toArray(arguments)]
