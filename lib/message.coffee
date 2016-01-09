@@ -24,11 +24,13 @@ class Message
 
     @_isCommand = null
 
+    @expectant = null
+
 
   initialize: (callback)->
     callback()
 
-  detectEvent: ->
+  detectEvent: =>
 
     event = null
 
@@ -44,13 +46,17 @@ class Message
 
   isOwnMessage: =>
 
-    @getBotId() is @author.id
+    @getBotId() is @getAuthorId()
 
   getBotId: =>
 
     botCredentials = @getBotCredentials()
 
     botCredentials.id
+
+  getAuthorId: =>
+
+    @author.id
 
   getBotCredentials: =>
 
@@ -76,9 +82,11 @@ class Message
 
     else false
 
+  setCommand: (@expectant)=>
+
   isCommand: =>
 
-    @_isCommand ?= @isText() and @hasCommandMark()
+    @_isCommand ?= if @expectant then true else @isText() and @hasCommandMark()
 
     @_isCommand
 
@@ -97,10 +105,10 @@ class Message
   getCommandName: =>
 
     if @isCommand()
-      @getText().match(COMMAND_REGEXP)[1]
+      @expectant or @getText().match(COMMAND_REGEXP)[1]
     else false
 
-  getCommandArguments: ->
+  getCommandArguments: =>
 
     if @isCommand()
 
@@ -108,7 +116,7 @@ class Message
 
       if argumentsString
 
-        _.map(argumentsString.split " ", (arg)-> arg.trim())
+        _.map(argumentsString.split(" "), (arg)-> arg.trim())
 
       else []
 
@@ -166,7 +174,38 @@ class Message
 
     _.last @attributes.photo
 
+  setExpectantIfExists: (callback)=>
 
+    return callback() if @isCommand()
+
+    @getExpectant (err, expectant)=>
+
+      console.log "setExpectantIfExists, @getExpectant", err, expectant
+
+      if expectant
+        @setCommand expectant.command
+
+      @removeExpectant callback
+
+  getExpectant: (callback)=>
+
+    if (expectant = @api.expectants["#{@chat.getType()}:#{@chat.getId()}:#{@getAuthorId()}"])
+      callback null, expectant
+    else callback null, false
+
+  removeExpectant: (callback)=>
+
+    @cancelExpectation()
+
+    callback()
+
+  expectArgumentForCommand: (command)=>
+
+    @chat.expectArgumentForCommand @getAuthorId(), command
+
+  cancelExpectation: =>
+
+    @chat.cancelExpectation @getAuthorId()
 
 
 

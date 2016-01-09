@@ -26,6 +26,8 @@ class TelegramBot extends EventEmitter
 
     @me = false
 
+    @expectants = {}
+
   Chat: @Chat = Chat
 
   Message: @Message = Message
@@ -61,29 +63,38 @@ class TelegramBot extends EventEmitter
       chat = new ChatClass attributes.chat, @
       message = new MessageClass attributes, @, chat
 
-      async.parallel(
+      async.series(
         [
-          chat.initialize
-          message.initialize
+          async.apply async.parallel, [
+            chat.initialize
+            message.initialize
+          ]
+          message.setExpectantIfExists
         ]
         =>
-          event = message.getEvent()
 
-          @emit "*", message, chat
-          @emit event, message, chat
-
-          if message.isCommand()
-            @emit "command:#{message.getCommandName()}", message, chat, message.getCommandArguments()
-
-          if message.isText()
-            for item in @regExpCallbacks
-              if item.regExp.exec message.getText()
-                if item.eventName
-                  @emit item.eventName, message, chat
-                else
-                  item.callback message, chat
+          @emitEvents message, chat
 
       )
+
+  emitEvents: (message, chat)=>
+
+    event = message.getEvent()
+
+    @emit "*", message, chat
+    @emit event, message, chat
+
+    if message.isCommand()
+
+      @emit.apply @, _.flatten(["command:#{message.getCommandName()}", message, chat, message.getCommandArguments()])
+
+    if message.isText()
+      for item in @regExpCallbacks
+        if item.regExp.exec message.getText()
+          if item.eventName
+            @emit item.eventName, message, chat
+          else
+            item.callback message, chat
 
   getMessageTypes: =>
 
@@ -104,6 +115,17 @@ class TelegramBot extends EventEmitter
       eventName
       callback
     }
+
+  addExpectation: (chat, authorId, command)=>
+
+    @expectants["#{chat.getType()}:#{chat.getId()}:#{authorId}"] = {
+      date: new Date
+      command
+    }
+
+  removeExpectation: (chat, authorId)=>
+
+    @expectants["#{chat.getType()}:#{chat.getId()}:#{authorId}"] = null
 
 
   getMessageClass: =>

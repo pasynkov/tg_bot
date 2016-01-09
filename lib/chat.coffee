@@ -14,7 +14,7 @@ class ReplyMarkup
 
 class Keyboard extends ReplyMarkup
 
-  constructor: (oneTime = false, selective = false, resize = false)->
+  constructor: (oneTime = false, selective = false, resize = false, @chat)->
 
     @params = {
       resize_keyboard: resize
@@ -38,6 +38,10 @@ class Keyboard extends ReplyMarkup
 
   setButtons: (buttons)=>
     @setRows buttons
+
+  chat: =>
+
+    @chat
 
 
 
@@ -101,11 +105,11 @@ class Chat
 
     options = @prepareOptions options
 
-    @api.sendMessage chatId, text, options, (err, attributes)->
+    @api.sendMessage @chatId, text, options, (err, attributes)=>
 
       return callback err if err
 
-      callback null, new Message(attributes, api, "outcoming")
+      callback null, new Message(attributes, @api, @)
 
   prepareOptions: (options = {})=>
 
@@ -128,6 +132,18 @@ class Chat
   getId: =>
 
     @chatId
+
+  getType: =>
+
+    @type
+
+  expectArgumentForCommand: (authorId, command)=>
+
+    @api.addExpectation @, authorId, command
+
+  cancelExpectation: (authorId)=>
+
+    @api.removeExpectation @, authorId
 
   sendMarkdown: =>
     @setupOptions()
@@ -168,17 +184,17 @@ class Chat
 
     @replyMarkup = new HideKeyboard selective
 
-    @replyMarkup
+    @
 
   createForceReply: (selective)->
 
     @replyMarkup = new ForceReply selective
 
-    @replyMarkup
+    @
 
   createKeyboard: (oneTime, selective, resize)->
 
-    @replyMarkup = new Keyboard oneTime, selective, resize
+    @replyMarkup = new Keyboard oneTime, selective, resize, @
 
     @replyMarkup
 
