@@ -86,9 +86,7 @@ class Message
 
   isCommand: =>
 
-    @_isCommand ?= if @expectant then true else @isText() and @hasCommandMark()
-
-    @_isCommand
+    @_isCommand ||= if @expectant then true else @isText() and @hasCommandMark()
 
   isText: =>
 
@@ -179,8 +177,6 @@ class Message
     return callback() if @isCommand()
 
     @getExpectant (err, expectant)=>
-
-      console.log "setExpectantIfExists, @getExpectant", err, expectant
 
       if expectant
         @setCommand expectant.command

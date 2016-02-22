@@ -5,7 +5,7 @@ Bot has simplify interface for fast creating telegram bots. Events, expect and o
 # Installation
 
 ```sh
-npm install node-telegram-bot-api
+npm install tg_bot
 ```
 
 # Integration

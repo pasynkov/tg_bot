@@ -98,6 +98,8 @@ class Chat
     @messageOptions = null
     @replyMarkup = null
 
+    @messageText = null
+
   initialize: (callback)->
     callback()
 
@@ -105,11 +107,15 @@ class Chat
 
     options = @prepareOptions options
 
-    @api.sendMessage @chatId, text, options, (err, attributes)=>
+    text ?= @messageText
+
+    @api.sendMessage @getId(), text, options, (err, attributes)=>
 
       return callback err if err
 
       callback null, new Message(attributes, @api, @)
+
+  setMessageText: (@messageText)=>
 
   prepareOptions: (options = {})=>
 
