@@ -73,6 +73,10 @@ class MessageOptions
 
     @params.parse_mode = "Markdown"
 
+  html: =>
+
+    @params.parse_mode = "HTML"
+
   disablePagePreview: =>
 
     @params.disable_web_page_preview = true
@@ -155,6 +159,14 @@ class Chat
     @setupOptions()
 
     @messageOptions.markdown()
+
+    @
+
+  sendHTML: =>
+
+    @setupOptions()
+
+    @messageOptions.html()
 
     @
 
